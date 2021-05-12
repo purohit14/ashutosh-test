@@ -28,7 +28,7 @@ stages:
     environment: hello-world-build
     strategy:
       runOnce:
-      deploy:
+       deploy:
         steps: 
 
         - download: current
