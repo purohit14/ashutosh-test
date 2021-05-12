@@ -1,0 +1,51 @@
+trigger: none
+
+stages:
+- stage: get_data
+  displayName: Gather Dependencies
+  jobs:
+  - job: data_download
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - bash: |
+        mkdir -p ./data
+        wget -O ./data/data.json https://api.chucknorris.io/jokes/random
+        find ./data/ -name '*.json' -exec cat {} \;
+      name: Download_Data
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: './data/'
+        ArtifactName: 'data'
+        publishLocation: 'Container'
+
+- stage: Build
+  dependsOn: get_data
+  jobs:
+  - deployment: container_build
+    pool:
+      vmImage: ubuntu-latest
+    environment: hello-world-build
+    strategy:
+      runOnce:
+      deploy:
+        steps: 
+
+        - download: current
+          artifact: data
+
+        - bash: |
+            echo Data folder for build $(Build.BuildId)
+            ls $(Agent.BuildDirectory)/data
+          name: ls_data
+
+        - bash: |
+            cd app
+            docker build --tag my-golang-app .
+          displayName: docker build
+        - bash: |
+            docker run --rm -u 0:0 --entrypoint /bin/sh my-golang-app -c 'ls -ltr /go/src/app'
+          displayName: ls /go/src/app
+
+        # Push image to Dev environment
+    
